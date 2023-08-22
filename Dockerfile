@@ -9,5 +9,6 @@ RUN tar xf openssl-3.0.8.tar.gz
 WORKDIR openssl-3.0.8/
 RUN ./Configure enable-fips
 RUN make install
+RUN make install_fips
 RUN openssl version
-RUN openssl fipsinstall
+RUN openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib64/ossl-modules/fips.so
