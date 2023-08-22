@@ -28,5 +28,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Tag, push and deploy image to Github Repository
-      run: docker image push --all-tags ghcr.io/izgateway/alpine-node-openssl-fips
+      run: |
+        docker image tag alpine-node-openssl-fips:latest ghcr.io/izgateway/alpine-node-openssl-fips:latest
+        docker image push --all-tags ghcr.io/izgateway/alpine-node-openssl-fips
       
