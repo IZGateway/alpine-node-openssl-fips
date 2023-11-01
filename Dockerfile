@@ -1,5 +1,5 @@
 ARG alpineVersion=3.18
-ARG nodeVersion=20
+ARG nodeVersion=21
 FROM node:$nodeVersion-alpine$alpineVersion
 
 RUN apk update
