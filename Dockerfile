@@ -21,3 +21,5 @@ RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBE
     mv filebeat-${FILEBEAT_VERSION}-linux-x86_64 filebeat && \
     cd filebeat && \
     cp filebeat /usr/bin 
+
+RUN apk add logrotate curl libc6-compat dnsmasq bind-tools jq bash
