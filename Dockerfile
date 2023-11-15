@@ -22,4 +22,4 @@ RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBE
     cd filebeat && \
     cp filebeat /usr/bin 
 
-RUN apk add logrotate curl libc6-compat dnsmasq bind-tools jq bash
+RUN apk add logrotate libc6-compat dnsmasq bind-tools jq bash
