@@ -14,3 +14,10 @@ RUN make install_fips
 RUN openssl version
 RUN openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib64/ossl-modules/fips.so
 
+ENV FILEBEAT_VERSION=8.10.4
+RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz && \
+    tar xzvf filebeat.tar.gz && \
+    rm filebeat.tar.gz && \
+    mv filebeat-${FILEBEAT_VERSION}-linux-x86_64 filebeat && \
+    cd filebeat && \
+    cp filebeat /usr/bin 
