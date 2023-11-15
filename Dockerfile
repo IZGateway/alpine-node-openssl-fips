@@ -3,7 +3,7 @@ ARG nodeVersion=21
 FROM node:$nodeVersion-alpine$alpineVersion
 
 RUN apk update
-RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat
+RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl
 
 RUN wget https://www.openssl.org/source/openssl-3.0.8.tar.gz
 RUN tar xf openssl-3.0.8.tar.gz
@@ -15,7 +15,7 @@ RUN openssl version
 RUN openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib64/ossl-modules/fips.so
 
 ENV FILEBEAT_VERSION=8.10.4
-RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz && \
+RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz && \
     tar xzvf filebeat.tar.gz && \
     rm filebeat.tar.gz && \
     mv filebeat-${FILEBEAT_VERSION}-linux-x86_64 filebeat && \
