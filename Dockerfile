@@ -3,7 +3,7 @@ ARG nodeVersion=21
 FROM node:$nodeVersion-alpine$alpineVersion
 
 RUN apk update
-RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl
+RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat
 
 RUN wget https://www.openssl.org/source/openssl-3.0.8.tar.gz
 RUN tar xf openssl-3.0.8.tar.gz
@@ -16,6 +16,7 @@ RUN tar xzvf filebeat.tar.gz && \
     cd filebeat && \
     cp filebeat /usr/bin 
 
+WORKDIR /
 ENV METRICBEAT_VERSION=8.11.3
 RUN curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${METRICBEAT_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz
 RUN tar xzvf /metricbeat.tar.gz && \
