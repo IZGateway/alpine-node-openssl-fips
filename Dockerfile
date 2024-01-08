@@ -16,7 +16,6 @@ RUN tar xzvf filebeat.tar.gz && \
     cd filebeat && \
     cp filebeat /usr/bin 
 
-WORKDIR /
 ENV METRICBEAT_VERSION=8.11.3
 RUN curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${METRICBEAT_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz
 RUN tar xzvf /metricbeat.tar.gz && \
@@ -33,4 +32,4 @@ RUN openssl version
 RUN openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib64/ossl-modules/fips.so
 
 
-RUN apk add logrotate libc6-compat dnsmasq bind-tools jq bash
+RUN apk add logrotate dnsmasq bind-tools jq bash
