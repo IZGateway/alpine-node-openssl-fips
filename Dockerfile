@@ -1,4 +1,4 @@
-ARG alpineVersion=3.18
+ARG alpineVersion=3.20
 ARG nodeVersion=21
 FROM node:$nodeVersion-alpine$alpineVersion
 
