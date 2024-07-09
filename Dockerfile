@@ -1,10 +1,11 @@
-ARG alpineVersion=3.18
+ARG alpineVersion=3.20
 ARG nodeVersion=21
 FROM node:$nodeVersion-alpine$alpineVersion
 
 RUN apk update
+RUN apk upgrade --no-cache
 RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat
-RUN apk upgrade busybox libxml2 openssl
+
 
 RUN wget https://www.openssl.org/source/openssl-3.0.8.tar.gz
 RUN tar xf openssl-3.0.8.tar.gz
