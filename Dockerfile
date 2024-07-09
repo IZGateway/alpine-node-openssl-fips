@@ -9,19 +9,20 @@ RUN apk upgrade busybox libxml2 openssl
 RUN wget https://www.openssl.org/source/openssl-3.0.8.tar.gz
 RUN tar xf openssl-3.0.8.tar.gz
 
-ENV FILEBEAT_VERSION=8.10.4
-RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz 
+# Set ELASTIC_VERSION to the version supported in the AudaciousSearch Elastic Search
+# environment at https://cloud.elastic.co/deployments/96949b9e33264bbba8e8934a7c7984de
+ENV ELASTIC_VERSION=8.11.4
+RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz 
 RUN tar xzvf filebeat.tar.gz && \
     rm filebeat.tar.gz && \
-    mv filebeat-${FILEBEAT_VERSION}-linux-x86_64 filebeat && \
+    mv filebeat-${ELASTIC_VERSION}-linux-x86_64 filebeat && \
     cd filebeat && \
     cp filebeat /usr/bin 
 
-ENV METRICBEAT_VERSION=8.11.3
-RUN curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${METRICBEAT_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz
+RUN curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz
 RUN tar xzvf /metricbeat.tar.gz && \
     rm metricbeat.tar.gz && \
-    mv metricbeat-${METRICBEAT_VERSION}-linux-x86_64 metricbeat && \
+    mv metricbeat-${ELASTIC_VERSION}-linux-x86_64 metricbeat && \
     cd metricbeat && \
     cp metricbeat /usr/bin
     
