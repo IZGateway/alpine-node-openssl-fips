@@ -4,6 +4,7 @@ FROM node:$nodeVersion-alpine$alpineVersion
 
 RUN apk update
 RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat
+RUN apk upgrade busybox libxml2 openssl
 
 RUN wget https://www.openssl.org/source/openssl-3.0.8.tar.gz
 RUN tar xf openssl-3.0.8.tar.gz
@@ -30,6 +31,5 @@ RUN make install
 RUN make install_fips
 RUN openssl version
 RUN openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib64/ossl-modules/fips.so
-
 
 RUN apk add logrotate dnsmasq bind-tools jq bash
