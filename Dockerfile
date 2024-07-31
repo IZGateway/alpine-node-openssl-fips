@@ -28,7 +28,7 @@ RUN tar xzvf /metricbeat.tar.gz && \
     mv metricbeat-${ELASTIC_VERSION}-linux-x86_64 metricbeat && \
     cd metricbeat && \
     cp metricbeat /usr/bin && \
-    mkdir -p /usr/share/metricbeat && \
+    mkdir -p /usr/share/metricbeat/data && \
     chmod 775 /usr/share/metricbeat /usr/share/metricbeat/data
     
 WORKDIR openssl-3.0.8/
