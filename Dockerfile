@@ -19,8 +19,8 @@ RUN tar xzvf filebeat.tar.gz && \
     mv filebeat-${ELASTIC_VERSION}-linux-x86_64 filebeat && \
     cd filebeat && \
     cp filebeat /usr/bin && \
-    mkdir -p /usr/share/filebeat && \
-    chmod 775 /usr/share/filebeat && chmod 775 .
+    mkdir -p /usr/share/filebeat/data && \
+    chmod 775 . /usr/share/filebeat /usr/share/filebeat/data
 
 RUN curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz
 RUN tar xzvf /metricbeat.tar.gz && \
@@ -29,7 +29,7 @@ RUN tar xzvf /metricbeat.tar.gz && \
     cd metricbeat && \
     cp metricbeat /usr/bin && \
     mkdir -p /usr/share/metricbeat && \
-    chmod 775 /usr/share/metricbeat && chmod 775 .
+    chmod 775 . /usr/share/metricbeat /usr/share/metricbeat/data
     
 WORKDIR openssl-3.0.8/
 RUN ./Configure enable-fips
