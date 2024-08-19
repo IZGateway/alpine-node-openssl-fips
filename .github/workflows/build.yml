@@ -8,7 +8,10 @@ on:
   pull_request:
     branches:
       - main
-
+  
+  # Enable manual trigger      
+  workflow_dispatch:
+  
 jobs:
   build:
     runs-on: ubuntu-latest 
