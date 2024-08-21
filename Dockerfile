@@ -8,8 +8,9 @@ RUN apk upgrade --no-cache
 RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat
 
 # Update Node Modules
+RUN npm outdated -g
 RUN npm update -g
-
+RUN npm outdated -g
 RUN wget https://www.openssl.org/source/openssl-3.0.8.tar.gz
 RUN tar xf openssl-3.0.8.tar.gz
 
