@@ -1,5 +1,5 @@
 ARG alpineVersion=3.20
-ARG nodeVersion=21
+ARG nodeVersion=22
 FROM node:$nodeVersion-alpine$alpineVersion
 
 # Update Base Image
