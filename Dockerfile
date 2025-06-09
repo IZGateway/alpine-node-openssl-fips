@@ -2,6 +2,7 @@ ARG alpineVersion=3.20
 ARG nodeVersion=22
 FROM node:$nodeVersion-alpine$alpineVersion
 
+ENV OPENSSL_VERSION=3.1.2
 # Update Base Image
 RUN apk update
 RUN apk upgrade --no-cache
@@ -11,8 +12,8 @@ RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-c
 RUN npm outdated -g || true
 RUN npm update -g
 RUN npm outdated -g
-RUN wget https://www.openssl.org/source/openssl-3.0.8.tar.gz
-RUN tar xf openssl-3.0.8.tar.gz
+RUN wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+RUN tar xf openssl-${OPENSSL_VERSION}.tar.gz
 
 # Set ELASTIC_VERSION to the version supported in the AudaciousSearch Elastic Search
 # environment at https://cloud.elastic.co/deployments/96949b9e33264bbba8e8934a7c7984de
@@ -35,7 +36,7 @@ RUN tar xzvf /metricbeat.tar.gz && \
     mkdir -p /usr/share/metricbeat/data && \
     chmod 775 /usr/share/metricbeat /usr/share/metricbeat/data
     
-WORKDIR openssl-3.1.2/
+WORKDIR openssl-${OPENSSL_VERSION}/
 RUN ./Configure enable-fips
 RUN make install
 RUN make install_fips
