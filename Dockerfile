@@ -16,7 +16,7 @@ RUN tar xf openssl-3.0.8.tar.gz
 
 # Set ELASTIC_VERSION to the version supported in the AudaciousSearch Elastic Search
 # environment at https://cloud.elastic.co/deployments/96949b9e33264bbba8e8934a7c7984de
-ENV ELASTIC_VERSION=8.18.0
+ENV ELASTIC_VERSION=9.0.2
 RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz 
 RUN tar xzvf filebeat.tar.gz && \
     rm filebeat.tar.gz && \
@@ -35,7 +35,7 @@ RUN tar xzvf /metricbeat.tar.gz && \
     mkdir -p /usr/share/metricbeat/data && \
     chmod 775 /usr/share/metricbeat /usr/share/metricbeat/data
     
-WORKDIR openssl-3.0.8/
+WORKDIR openssl-3.1.2/
 RUN ./Configure enable-fips
 RUN make install
 RUN make install_fips
