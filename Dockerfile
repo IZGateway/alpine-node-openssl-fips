@@ -37,10 +37,10 @@ RUN tar xzvf /metricbeat.tar.gz && \
     chmod 775 /usr/share/metricbeat /usr/share/metricbeat/data
     
 WORKDIR openssl-${OPENSSL_VERSION}/
-RUN ./Configure enable-fips
+RUN ./config enable-fips
+RUN make
 RUN make install
-RUN make install_fips
-RUN openssl version
+RUN openssl version -d
 RUN openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib64/ossl-modules/fips.so
 
 RUN apk add logrotate dnsmasq bind-tools jq bash
