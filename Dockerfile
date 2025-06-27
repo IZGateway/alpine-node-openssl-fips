@@ -6,7 +6,7 @@ ENV OPENSSL_VERSION=3.5.0
 # Update Base Image
 RUN apk update
 RUN apk upgrade --no-cache
-RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat
+RUN apk add --no-cache perl gcc musl musl-dev linux-headers make gcompat curl libc6-compat 
 
 # Update Node Modules
 RUN npm outdated -g || true
