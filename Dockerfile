@@ -2,11 +2,11 @@ ARG alpineVersion=3.20
 ARG nodeVersion=22
 FROM node:$nodeVersion-alpine$alpineVersion
 
-ENV OPENSSL_VERSION=3.5.0
+ENV OPENSSL_VERSION=3.1.2
 # Update Base Image
 RUN apk update
 RUN apk upgrade --no-cache
-RUN apk add --no-cache perl gcc musl musl-dev linux-headers make gcompat curl libc6-compat 
+RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat
 
 # Update Node Modules
 RUN npm outdated -g || true
@@ -37,10 +37,10 @@ RUN tar xzvf /metricbeat.tar.gz && \
     chmod 775 /usr/share/metricbeat /usr/share/metricbeat/data
     
 WORKDIR openssl-${OPENSSL_VERSION}/
-RUN ./config enable-fips
-RUN make
+RUN ./Configure enable-fips
 RUN make install
-RUN openssl version -d
+RUN make install_fips
+RUN openssl version
 RUN openssl fipsinstall -out /usr/local/ssl/fipsmodule.cnf -module /usr/local/lib64/ossl-modules/fips.so
 
 RUN apk add logrotate dnsmasq bind-tools jq bash
