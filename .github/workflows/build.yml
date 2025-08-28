@@ -55,7 +55,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: alpine-node-openssl-fips
       run: |
-        docker image alpine-node-openssl-fips:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{github.run_number}}
+        docker image tag alpine-node-openssl-fips:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{github.run_number}}
         docker image tag alpine-node-openssl-fips:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
         docker image push --all-tags $ECR_REGISTRY/$ECR_REPOSITORY
 
