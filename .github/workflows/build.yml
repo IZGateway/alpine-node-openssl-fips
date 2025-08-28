@@ -7,7 +7,6 @@ on:
   push:
     branches: 
       - main
-      - IGDD-2187_Base-image-in-aws-ecr
     
   pull_request:
     branches:
