@@ -2,11 +2,11 @@ ARG alpineVersion=3.22
 ARG nodeVersion=22
 FROM node:$nodeVersion-alpine$alpineVersion
 
-ENV OPENSSL_VERSION=3.1.2
+ENV OPENSSL_VERSION=3.5.0
 # Update Base Image
 RUN apk update
 RUN apk upgrade --no-cache
-RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat
+RUN apk add --no-cache perl gcc musl-dev linux-headers make gcompat curl libc6-compat openssl-dev
 
 # Update Node Modules
 RUN npm outdated -g || true
