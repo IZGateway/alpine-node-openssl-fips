@@ -1,0 +1,17 @@
+.include /etc/ssl/fipsmodule.cnf
+
+[openssl_init]
+providers = provider_sect
+alg_section = algorithm_sect
+
+[algorithm_sect]
+default_properties = fips=yes
+
+# List of providers to load
+[provider_sect]
+fips = fips_sect
+base = base_sect
+default = default_sect
+
+[base_sect]
+activate = 1
