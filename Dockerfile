@@ -18,7 +18,7 @@ RUN apk add logrotate dnsmasq bind-tools jq bash
 
 # Set ELASTIC_VERSION to the version supported in the AudaciousSearch Elastic Search
 # environment at https://cloud.elastic.co/deployments/96949b9e33264bbba8e8934a7c7984de
-ENV ELASTIC_VERSION=9.1.4
+ENV ELASTIC_VERSION=9.1.5
 RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz 
 RUN tar xzvf filebeat.tar.gz && \
     rm filebeat.tar.gz && \
