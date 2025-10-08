@@ -16,12 +16,10 @@ RUN npm outdated -g
 RUN apk add --no-cache curl
 RUN apk add logrotate dnsmasq bind-tools jq bash 
 
-# Set ELASTIC_VERSION to the latest version 
+# Set ELASTIC_VERSION to the latest version and pull filebeat 
 RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r .tag_name | sed 's/^v//') && \
-    echo "ELASTIC_VERSION=$ELASTIC_VERSION" >> /etc/environment
-
-RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz 
-RUN tar xzvf filebeat.tar.gz && \
+    curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz && \
+    tar xzvf filebeat.tar.gz && \
     rm filebeat.tar.gz && \
     mv filebeat-${ELASTIC_VERSION}-linux-x86_64 filebeat && \
     cd filebeat && \
@@ -29,8 +27,10 @@ RUN tar xzvf filebeat.tar.gz && \
     mkdir -p /usr/share/filebeat/data && \
     chmod 775 /usr/share/filebeat /usr/share/filebeat/data
 
-RUN curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz
-RUN tar xzvf /metricbeat.tar.gz && \
+# Set ELASTIC_VERSION to the latest version and pull metricbeat 
+RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r .tag_name | sed 's/^v//') && \
+    curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz && \
+    tar xzvf /metricbeat.tar.gz && \
     rm metricbeat.tar.gz && \
     mv metricbeat-${ELASTIC_VERSION}-linux-x86_64 metricbeat && \
     cd metricbeat && \
