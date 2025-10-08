@@ -16,9 +16,10 @@ RUN npm outdated -g
 RUN apk add --no-cache curl
 RUN apk add logrotate dnsmasq bind-tools jq bash 
 
-# Set ELASTIC_VERSION to the version supported in the AudaciousSearch Elastic Search
-# environment at https://cloud.elastic.co/deployments/96949b9e33264bbba8e8934a7c7984de
-ENV ELASTIC_VERSION=9.1.5
+# Set ELASTIC_VERSION to the latest version 
+RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r .tag_name | sed 's/^v//') && \
+    echo "ELASTIC_VERSION=$ELASTIC_VERSION" >> /etc/environment
+
 RUN curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz 
 RUN tar xzvf filebeat.tar.gz && \
     rm filebeat.tar.gz && \
