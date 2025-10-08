@@ -2,7 +2,7 @@ ARG alpineVersion=3.22
 ARG nodeVersion=22
 FROM node:$nodeVersion-alpine$alpineVersion
 
-ENV OPENSSL_VERSION=3.5.2
+ENV OPENSSL_VERSION=3.5.4
 # Update Base Image
 RUN apk update
 RUN apk upgrade --no-cache
