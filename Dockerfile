@@ -1,5 +1,5 @@
 ARG alpineVersion=3.22
-ARG nodeVersion=22
+ARG nodeVersion=24
 FROM node:$nodeVersion-alpine$alpineVersion
 
 ENV OPENSSL_VERSION=3.5.4
