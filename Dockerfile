@@ -10,6 +10,7 @@ RUN apk upgrade --no-cache
 # Update Node Modules
 RUN npm outdated -g || true
 RUN npm update -g
+RUN npm audit fix
 RUN npm outdated -g
 
 # We need curl to download the Elastic Beats, and for Diagnostics within the container
