@@ -7,10 +7,12 @@ ENV OPENSSL_VERSION=3.5.4
 RUN apk update
 RUN apk upgrade --no-cache
 
+# Update npm itself
+RUN npm i -g npm@latest && npm cache clean --force
+
 # Update Node Modules
 RUN npm outdated -g || true
 RUN npm update -g
-RUN npm audit fix
 RUN npm outdated -g
 
 # We need curl to download the Elastic Beats, and for Diagnostics within the container
