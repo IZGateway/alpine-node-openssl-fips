@@ -10,6 +10,9 @@ RUN apk upgrade --no-cache
 # Update npm itself
 RUN npm i -g npm@latest && npm cache clean --force
 
+# Verify tar version is updated
+RUN npm list -g tar || true
+
 # Update Node Modules
 RUN npm outdated -g || true
 RUN npm update -g
