@@ -11,8 +11,6 @@ RUN apk upgrade --no-cache
 RUN npm outdated -g || true
 RUN npm update -g
 RUN npm outdated -g
-# Fix for CVE-2025-64118, upgrades tar to 7.5.2 if 7.5.1 is found, code can be removed when alpine-node has latest tar version
-RUN npm list tar -g --depth 1 | grep tar@7.5.1 && npm install tar@7.5.2 -g
 
 # We need curl to download the Elastic Beats, and for Diagnostics within the container
 RUN apk add --no-cache curl
