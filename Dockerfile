@@ -8,6 +8,7 @@ RUN apk update
 RUN apk upgrade --no-cache
 
 # Update Node Modules
+RUN npm install -g npm@latest
 RUN npm outdated -g || true
 RUN npm update -g
 RUN npm outdated -g
