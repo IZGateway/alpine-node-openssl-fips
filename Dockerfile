@@ -47,7 +47,7 @@ RUN apk add --no-cache gcc musl-dev linux-headers make perl gcompat libc6-compat
     cp ./providers/fipsmodule.cnf /etc/ssl/ && \
     diff ./providers/fips.so /usr/lib/ossl-modules/fips.so && \
     cd / && \
-    apk del gcc musl-dev linux-headers make perl gcompat libc6-compat openssl-dev && \
+    apk del gcc musl-dev linux-headers make perl openssl-dev && \
     rm -rf /var/cache/apk/* /tmp/* /openssl-${OPENSSL_VERSION}*
 
 # Insert FIPS ONLY configuration block
