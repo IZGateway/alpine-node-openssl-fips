@@ -52,6 +52,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
               
+    # Cache OpenSSL Build to speed up subsequent builds as fips.so should not change often
     - name: Build Docker Image with cache
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
