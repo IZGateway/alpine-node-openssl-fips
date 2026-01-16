@@ -60,7 +60,7 @@ jobs:
         docker buildx build \
             --progress=plain \
             --cache-from=type=local,src=.buildx-cache --cache-to=type=local,dest=.buildx-cache \
-            -t alpine-node-openssl-fips:latest \ 
+            -t alpine-node-openssl-fips:latest \
             -t ghcr.io/izgateway/alpine-node-openssl-fips:latest \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:${{github.run_number}} \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
