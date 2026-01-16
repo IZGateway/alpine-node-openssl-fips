@@ -6,7 +6,7 @@ FROM node:$nodeVersion-alpine$alpineVersion
 ENV OPENSSL_VERSION=3.5.4
 
 # Stage 1: Build OpenSSL FIPS
-FROM alpine:3.22 AS openssl-build
+FROM node:24-alpine3.22 AS openssl-build
 
 ARG OPENSSL_VERSION=3.5.4
 
