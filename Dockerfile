@@ -24,6 +24,7 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
     && ./Configure enable-fips \
     && make install \
     && make install_fips \
+    && cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/ \
     && openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so \
     && cp ./providers/fipsmodule.cnf /etc/ssl/ \
     && diff ./providers/fips.so /usr/lib/ossl-modules/fips.so 
