@@ -13,11 +13,10 @@ ARG OPENSSL_VERSION=3.5.4
 RUN apk update \
     && apk upgrade --no-cache \
     && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat \
-    && npm update -g
+    && npm update -g 
     
 # Update, upgrade, install packages, and update npm in one layer
 RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
-    && npm update -g \
     && wget https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz \
     && tar xf openssl-${OPENSSL_VERSION}.tar.gz \
     && cd openssl-${OPENSSL_VERSION} \
