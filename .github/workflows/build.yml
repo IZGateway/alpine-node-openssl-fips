@@ -23,20 +23,23 @@ jobs:
     - name: Checkout the software  
       uses: actions/checkout@v4
       
-    - name: Build Docker Image
-      run: docker build --progress=plain -t alpine-node-openssl-fips:latest . 
-      
+    - name: Restore Docker build cache
+      uses: actions/cache@v4
+      with:
+        path: .buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     - name: Login to GitHub Repository
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Tag, push and deploy image to Github Repository
-      run: |
-        docker image tag alpine-node-openssl-fips:latest ghcr.io/izgateway/alpine-node-openssl-fips:latest
-        docker image push --all-tags ghcr.io/izgateway/alpine-node-openssl-fips
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -44,18 +47,30 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
-
+        
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Tag and push image to Amazon ECR
+              
+    # Cache OpenSSL Build to speed up subsequent builds as fips.so should not change often
+    - name: Build Docker Image with cache
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: alpine-node-openssl-fips
       run: |
-        docker image tag alpine-node-openssl-fips:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{github.run_number}}
-        docker image tag alpine-node-openssl-fips:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker buildx build \
+            --progress=plain \
+            --cache-from=type=local,src=.buildx-cache --cache-to=type=local,dest=.buildx-cache \
+            -t alpine-node-openssl-fips:latest \
+            -t ghcr.io/izgateway/alpine-node-openssl-fips:latest \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:${{github.run_number}} \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --load .
+                      
+    - name: Tag, push and deploy images to Github Repository and ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: alpine-node-openssl-fips
+      run: |
+        docker image push --all-tags ghcr.io/izgateway/alpine-node-openssl-fips
         docker image push --all-tags $ECR_REGISTRY/$ECR_REPOSITORY
-
-      
