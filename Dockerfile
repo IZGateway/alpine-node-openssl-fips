@@ -21,12 +21,12 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
     && tar xf openssl-${OPENSSL_VERSION}.tar.gz \
     && cd openssl-${OPENSSL_VERSION} \
     && ./Configure enable-fips \
-    && make install \
-    && make install_fips \
-    && cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/ \
-    && openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so \
-    && cp ./providers/fipsmodule.cnf /etc/ssl/ \
-    && diff ./providers/fips.so /usr/lib/ossl-modules/fips.so 
+    && make install
+RUN make install_fips
+RUN cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/
+RUN openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so
+RUN cp ./providers/fipsmodule.cnf /etc/ssl/
+RUN diff ./providers/fips.so /usr/lib/ossl-modules/fips.so 
 
 # Stage 2: Main image
 FROM node:24-alpine3.22
