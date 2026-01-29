@@ -9,6 +9,7 @@ ENV OPENSSL_VERSION=3.5.4
 FROM node:24-alpine3.22 AS openssl-build
 
 ARG OPENSSL_VERSION=3.6.1
+ENV LD_LIBRARY_PATH /usr/local/lib:/usr/local/lib64
 
 RUN apk update \
     && apk upgrade --no-cache \
@@ -21,11 +22,11 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
     && tar xf openssl-${OPENSSL_VERSION}.tar.gz \
     && cd openssl-${OPENSSL_VERSION} \
     && ./Configure enable-fips \
-    && make install
-RUN cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/
-RUN openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so
-RUN cp ./providers/fipsmodule.cnf /etc/ssl/
-RUN diff ./providers/fips.so /usr/lib/ossl-modules/fips.so 
+    && make install \
+    && cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/ \
+    && openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so \
+    && cp ./providers/fipsmodule.cnf /etc/ssl/ \
+    && diff ./providers/fips.so /usr/lib/ossl-modules/fips.so 
 
 # Stage 2: Main image
 FROM node:24-alpine3.22
@@ -63,17 +64,17 @@ RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/
 
 WORKDIR /
 
-# Check OpenSSL Version data
-RUN openssl version -d -a 
+ENV OPENSSL_FIPS 1
+ENV LD_LIBRARY_PATH /usr/local/lib:/usr/local/lib64
 
 # Insert FIPS ONLY configuration block
 COPY openssl_fips_insert.txt /tmp/openssl_fips_insert.txt
 RUN awk '/^# For FIPS/ { print; system("cat /tmp/openssl_fips_insert.txt"); skip=1; next } \
      /^# fips = fips_sect/ { skip=0; next } \
      skip { next } \
-     { print }' /etc/ssl/openssl.cnf > /etc/ssl/openssl.cnf.new && \
-    mv /etc/ssl/openssl.cnf /etc/ssl/openssl.cnf.bak && \
-    mv /etc/ssl/openssl.cnf.new /etc/ssl/openssl.cnf
+     { print }' /etc/ssl/openssl.cnf > /etc/ssl/openssl.cnf.new \
+    && mv /etc/ssl/openssl.cnf /etc/ssl/openssl.cnf.bak \
+    && mv /etc/ssl/openssl.cnf.new /etc/ssl/openssl.cnf \ 
+    && openssl version -d -a \
+    && openssl list -providers 
 
-# Check OpenSSL Version data
-RUN openssl version -d -a 
