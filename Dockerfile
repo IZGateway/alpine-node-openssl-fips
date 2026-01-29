@@ -17,17 +17,13 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
     && wget https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz \
     && tar xf openssl-${OPENSSL_VERSION}.tar.gz \
     && cd openssl-${OPENSSL_VERSION} \
-    && ./Configure enable-fips
-    
-RUN nproc && make -j$(nproc) install
-
-RUN cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/ 
-
-RUN openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so
-
-RUN cp ./providers/fipsmodule.cnf /etc/ssl/
-
-RUN diff ./providers/fips.so /usr/lib/ossl-modules/fips.so
+    && ./Configure enable-fips \
+    && make -j$(nproc) \ 
+    && make install \
+    && cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/ \
+    && openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so \
+    && cp ./providers/fipsmodule.cnf /etc/ssl/
+    && diff ./providers/fips.so /usr/lib/ossl-modules/fips.so
 
 # Stage 2: Main image
 FROM alpine:$alpineVersion
