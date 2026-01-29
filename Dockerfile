@@ -10,10 +10,9 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
 
 RUN apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat \
-    && npm update -g 
+    && apk add --no-cache bash gcompat libc6-compat 
     
-# Update, upgrade, install packages, and update npm in one layer
+# Update, upgrade, install packages in one layer
 RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
     && wget https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz \
     && tar xf openssl-${OPENSSL_VERSION}.tar.gz \
@@ -31,7 +30,7 @@ FROM alpine:$alpineVersion
 # Update, upgrade, install packages (including alpine dynamically linked node), and update npm in one layer
 RUN apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat npm nodejs \
+    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs npm \ 
     && npm update -g
 
 # Copy OpenSSL from build stage
