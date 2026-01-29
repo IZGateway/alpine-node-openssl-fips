@@ -2,14 +2,11 @@
 ARG alpineVersion=3.22
 ARG nodeVersion=24
 
-FROM node:$nodeVersion-alpine$alpineVersion
-ENV OPENSSL_VERSION=3.5.4
-
 # Stage 1: Build OpenSSL FIPS
-FROM node:24-alpine3.22 AS openssl-build
+FROM alpine:$alpineVersion AS openssl-build
 
 ARG OPENSSL_VERSION=3.6.1
-ENV LD_LIBRARY_PATH /usr/local/lib:/usr/local/lib64
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
 
 RUN apk update \
     && apk upgrade --no-cache \
@@ -22,26 +19,26 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
     && tar xf openssl-${OPENSSL_VERSION}.tar.gz \
     && cd openssl-${OPENSSL_VERSION} \
     && ./Configure enable-fips \
-    && make install \
+    && make -j$(nproc) install \
     && cp /usr/local/lib64/ossl-modules/fips.so /usr/lib/ossl-modules/ \
     && openssl fipsinstall -out /etc/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so \
     && cp ./providers/fipsmodule.cnf /etc/ssl/ \
-    && diff ./providers/fips.so /usr/lib/ossl-modules/fips.so 
+    && diff ./providers/fips.so /usr/lib/ossl-modules/fips.so
 
 # Stage 2: Main image
-FROM node:24-alpine3.22
+FROM alpine:$alpineVersion
 
-# Update, upgrade, install packages, and update npm in one layer
+# Update, upgrade, install packages (including alpine dynamically linked node), and update npm in one layer
 RUN apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat \
+    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs \
     && npm update -g
 
 # Copy OpenSSL from build stage
 COPY --from=openssl-build /usr/local /usr/local
 COPY --from=openssl-build /usr/lib/ossl-modules/fips.so /usr/lib/ossl-modules/fips.so
 COPY --from=openssl-build /etc/ssl/fipsmodule.cnf /etc/ssl/fipsmodule.cnf
-   
+
 # Download and install filebeat and metricbeat in one layer
 RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r .tag_name | sed 's/^v//') && \
     curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz && \
@@ -64,8 +61,8 @@ RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/
 
 WORKDIR /
 
-ENV OPENSSL_FIPS 1
-ENV LD_LIBRARY_PATH /usr/local/lib:/usr/local/lib64
+ENV OPENSSL_FIPS=1
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
 
 # Insert FIPS ONLY configuration block
 COPY openssl_fips_insert.txt /tmp/openssl_fips_insert.txt
@@ -76,5 +73,6 @@ RUN awk '/^# For FIPS/ { print; system("cat /tmp/openssl_fips_insert.txt"); skip
     && mv /etc/ssl/openssl.cnf /etc/ssl/openssl.cnf.bak \
     && mv /etc/ssl/openssl.cnf.new /etc/ssl/openssl.cnf \ 
     && openssl version -d -a \
-    && openssl list -providers 
+    && openssl list -providers \
+    && node --force-fips
 
