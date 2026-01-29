@@ -31,7 +31,7 @@ FROM alpine:$alpineVersion
 # Update, upgrade, install packages (including alpine dynamically linked node), and update npm in one layer
 RUN apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs \
+    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat npm nodejs \
     && npm update -g
 
 # Copy OpenSSL from build stage
