@@ -1,12 +1,12 @@
 # Dockerfile
-ARG alpineVersion=3.22
+ARG alpineVersion=3.23
 ARG nodeVersion=24
 
 FROM node:$nodeVersion-alpine$alpineVersion
-ENV OPENSSL_VERSION=3.5.4
+ENV OPENSSL_VERSION=3.5.5
 
 # Stage 1: Build OpenSSL FIPS
-FROM node:24-alpine3.22 AS openssl-build
+FROM node:$nodeVersion-alpine$alpineVersion AS openssl-build
 
 ARG OPENSSL_VERSION=3.5.4
 
@@ -29,7 +29,7 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
     && diff ./providers/fips.so /usr/lib/ossl-modules/fips.so 
 
 # Stage 2: Main image
-FROM node:24-alpine3.22
+FROM node:$nodeVersion-alpine$alpineVersion
 
 # Update, upgrade, install packages, and update npm in one layer
 RUN apk update \
