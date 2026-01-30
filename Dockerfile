@@ -34,11 +34,11 @@ RUN tr -d '\r' < /tmp/openssl_fips_insert.txt > /tmp/openssl_fips_insert_unix.tx
 RUN awk '/^# For FIPS/ { print; system("cat /tmp/openssl_fips_insert.txt"); skip=1; next } \
      /^# fips = fips_sect/ { skip=0; next } \
      skip { next } \
-     { print }' /usr/local/ssl/openssl.cnf > /usr/local/ssl/openssl.cnf.fips
-RUN mv /usr/local/ssl/openssl.cnf /usr/local/ssl/openssl.cnf.dist
-RUN cp /usr/local/ssl/openssl.cnf.fips /usr/local/ssl/openssl.cnf
-RUN openssl version -d -a 
-RUN openssl list -providers
+     { print }' /usr/local/ssl/openssl.cnf > /usr/local/ssl/openssl.cnf.fips \
+    && mv /usr/local/ssl/openssl.cnf /usr/local/ssl/openssl.cnf.dist \
+    && cp /usr/local/ssl/openssl.cnf.fips /usr/local/ssl/openssl.cnf \
+    && openssl version -d -a\
+    && openssl list -providers
     
 # Stage 2: Main image
 FROM alpine:$alpineVersion
@@ -49,7 +49,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:/usr/lib/ossl-modules
 # Update, upgrade, install packages (including alpine dynamically linked node), and update npm in one layer
 RUN apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs npm \ 
+    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs npm ca-certificates update-ca-certificates \ 
     && npm update -g
 
 # Copy OpenSSL from build stage
@@ -75,6 +75,7 @@ RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/
     && cp metricbeat /usr/bin \
     && mkdir -p /usr/share/metricbeat/data \
     && chmod 775 /usr/share/metricbeat /usr/share/metricbeat/data \
+    && cp -a /etc/ssl/certs/* /usr/local/ssl/certs \
     && openssl list -providers 
 
 
