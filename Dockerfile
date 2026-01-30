@@ -8,7 +8,7 @@ ENV OPENSSL_VERSION=3.5.5
 # Stage 1: Build OpenSSL FIPS
 FROM node:$nodeVersion-alpine$alpineVersion AS openssl-build
 
-ARG OPENSSL_VERSION=3.5.4
+ARG OPENSSL_VERSION=3.5.5
 
 RUN apk update \
     && apk upgrade --no-cache \
