@@ -74,3 +74,56 @@ jobs:
       run: |
         docker image push --all-tags ghcr.io/izgateway/alpine-node-openssl-fips
         docker image push --all-tags $ECR_REGISTRY/$ECR_REPOSITORY
+
+  # Experimental: Build Node.js from source with custom OpenSSL 3.5.5
+  # This eliminates CVE scanner false positives from bundled OpenSSL headers
+  # Only runs on manual dispatch due to long build time (~30-60 min)
+  build-nodebuild:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the software
+      uses: actions/checkout@v4
+
+    - name: Restore Docker build cache (nodebuild)
+      uses: actions/cache@v4
+      with:
+        path: .buildx-cache-nodebuild
+        key: ${{ runner.os }}-buildx-nodebuild-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-nodebuild-
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build Docker Image (nodebuild - Node.js from source)
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: alpine-node-openssl-fips
+      run: |
+        docker buildx build \
+            --progress=plain \
+            --cache-from=type=local,src=.buildx-cache-nodebuild \
+            --cache-to=type=local,dest=.buildx-cache-nodebuild \
+            -f Dockerfile.nodebuild \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:austintest-${{github.run_number}} \
+            --load .
+
+    - name: Push nodebuild image to ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: alpine-node-openssl-fips
+      run: |
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:austintest-${{github.run_number}}
