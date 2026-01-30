@@ -5,7 +5,7 @@ ARG nodeVersion=24
 # Stage 1: Build OpenSSL FIPS
 FROM alpine:$alpineVersion AS openssl-build
 
-ARG OPENSSL_VERSION=3.6.1
+ARG OPENSSL_VERSION=3.5.5
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
 
 RUN apk update \
