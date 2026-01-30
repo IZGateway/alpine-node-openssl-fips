@@ -77,19 +77,17 @@ RUN curl -fsSLO https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}.t
 # =============================================================================
 FROM alpine:${ALPINE_VERSION}
 
-# Copy OpenSSL libraries and binaries
-COPY --from=openssl-build /usr/local/lib64 /usr/local/lib64
-COPY --from=openssl-build /usr/local/bin/openssl /usr/local/bin/openssl
-COPY --from=openssl-build /usr/local/include/openssl /usr/local/include/openssl
+# Copy entire /usr/local from node-build stage (includes OpenSSL + Node.js)
+# Using tar to preserve symlinks (Docker COPY dereferences them)
+COPY --from=node-build /usr/local /usr/local
 COPY --from=openssl-build /etc/ssl /etc/ssl
 
-# Copy Node.js
-COPY --from=node-build /usr/local/bin/node /usr/local/bin/node
-COPY --from=node-build /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=node-build /usr/local/bin/npx /usr/local/bin/npx
-COPY --from=node-build /usr/local/bin/corepack /usr/local/bin/corepack
-COPY --from=node-build /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=node-build /usr/local/include/node /usr/local/include/node
+# Fix npm/npx/corepack symlinks (Docker COPY dereferences symlinks, breaking them)
+# These need to be symlinks pointing into node_modules for require() paths to work
+RUN rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack && \
+    ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
+    ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
 
 # Set environment
 ENV LD_LIBRARY_PATH=/usr/local/lib64
