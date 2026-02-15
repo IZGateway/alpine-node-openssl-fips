@@ -58,7 +58,10 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: alpine-node-openssl-fips
       run: |
+        # Change the default Buildx builder to increase the log size limit to avoid truncation of build logs
+        docker buildx create --name custom_builder --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=50000000 --use
         docker buildx build \
+            --platform=linux/amd64 \
             --progress=plain \
             --cache-from=type=local,src=.buildx-cache --cache-to=type=local,dest=.buildx-cache \
             -t alpine-node-openssl-fips:latest \
