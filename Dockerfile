@@ -1,11 +1,11 @@
 # Dockerfile
 ARG alpineVersion=3.22
 ARG nodeVersion=24
-ARG OPENSSL_VERSION=3.5.5
 
 # Stage 1: Build OpenSSL FIPS
 FROM --platform=linux/amd64 node:24-alpine3.22 AS openssl-build
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
+ENV OPENSSL_VERSION=3.5.5
 
 RUN apk update \
     && apk upgrade --no-cache \
