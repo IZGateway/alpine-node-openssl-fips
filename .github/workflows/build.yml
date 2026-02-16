@@ -59,6 +59,7 @@ jobs:
         ECR_REPOSITORY: alpine-node-openssl-fips
       run: |
         docker buildx build \
+            --platform=linux/amd64 \
             --progress=plain \
             --cache-from=type=local,src=.buildx-cache --cache-to=type=local,dest=.buildx-cache \
             -t alpine-node-openssl-fips:latest \
