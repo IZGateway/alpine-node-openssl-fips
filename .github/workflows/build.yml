@@ -62,6 +62,8 @@ jobs:
         docker buildx create --name single_platform_builder --driver docker-container --use || docker buildx use single_platform_builder
         docker buildx build \
             --platform=linux/amd64 \
+            --provenance=false \
+            --sbom=false \
             --progress=plain \
             --cache-from=type=local,src=.buildx-cache --cache-to=type=local,dest=.buildx-cache \
             -t ghcr.io/izgateway/alpine-node-openssl-fips:latest \
