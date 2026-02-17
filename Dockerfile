@@ -53,7 +53,7 @@ RUN apk update \
     && npm update -g
 
 # libpng Fix for CVE-2026-25646, remove when the patch is available in latest LTS version (May/June)
-RUN apk add libpng --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main
+RUN apk add libpng --update-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main
 
 # Copy OpenSSL from build stage
 COPY --from=openssl-build /usr/local /usr/local
