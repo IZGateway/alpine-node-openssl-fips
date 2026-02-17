@@ -12,6 +12,9 @@ RUN apk update \
     && apk upgrade --no-cache \
     && apk add --no-cache bash gcompat libc6-compat 
 
+# libpng Fix for CVE-2026-25646, remove when the patch is available in latest LTS version (May/June)
+RUN apk add libpng --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main
+
 ENV OPENSSL_FIPS=1
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:/usr/lib/ossl-modules
     
