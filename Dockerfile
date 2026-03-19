@@ -66,7 +66,7 @@ COPY --from=openssl-build /usr/local /usr/local
 COPY --from=openssl-build /usr/lib/ossl-modules/fips.so /usr/lib/ossl-modules/fips.so
 
 # Download and install filebeat and metricbeat in one layer
-RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r .tag_name | sed 's/^v//') \
+RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//') \
     && if [ -z "$ELASTIC_VERSION" ]; then \
          echo "WARNING: Failed to fetch Elastic Beats version from GitHub API"; \
          echo "Falling back to known stable version 8.16.1"; \
