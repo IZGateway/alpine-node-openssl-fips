@@ -23,8 +23,7 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
          export OPENSSL_VERSION=3.5.5; \
        fi \
     && echo "Building OpenSSL version: ${OPENSSL_VERSION}" \
-    && wget https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz \
-    && if [ ! -f "openssl-${OPENSSL_VERSION}.tar.gz" ]; then \
+    && if ! wget "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz"; then \
          echo "ERROR: Failed to download OpenSSL ${OPENSSL_VERSION}"; \
          exit 1; \
        fi \
