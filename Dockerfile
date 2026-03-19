@@ -69,8 +69,8 @@ COPY --from=openssl-build /usr/lib/ossl-modules/fips.so /usr/lib/ossl-modules/fi
 RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//') \
     && if [ -z "$ELASTIC_VERSION" ]; then \
          echo "WARNING: Failed to fetch Elastic Beats version from GitHub API"; \
-         echo "Falling back to known stable version 8.16.1"; \
-         export ELASTIC_VERSION=8.16.1; \
+         echo "Falling back to known stable version 9.3.2"; \
+         export ELASTIC_VERSION=9.3.2; \
        fi \
     && echo "Installing Elastic Beats version: ${ELASTIC_VERSION}" \
     && curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz \
