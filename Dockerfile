@@ -1,5 +1,5 @@
 # Dockerfile
-ARG alpineVersion=3.22
+ARG alpineVersion=3.23
 ARG nodeVersion=24
 
 # Stage 1: Build OpenSSL FIPS
@@ -61,9 +61,6 @@ RUN apk update \
     && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs npm ca-certificates \ 
     && npm update -g
 
-# libpng Fix for CVE-2026-25646, remove when the patch is available in latest LTS version (May/June)
-RUN apk add libpng --update-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main
-RUN apk update && apk upgrade bind libpng nodejs
 # Copy OpenSSL from build stage
 COPY --from=openssl-build /usr/local /usr/local
 COPY --from=openssl-build /usr/lib/ossl-modules/fips.so /usr/lib/ossl-modules/fips.so
