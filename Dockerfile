@@ -58,7 +58,8 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:/usr/lib/ossl-modules
 # Update, upgrade, install packages (including alpine dynamically linked node), and update npm in one layer
 RUN apk update \
     && apk upgrade --no-cache \
-    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs npm ca-certificates \ 
+    && apk add --no-cache curl logrotate dnsmasq bind-tools jq bash vim gcompat libc6-compat nodejs npm ca-certificates \
+    && apk add --no-cache -X https://dl-cdn.alpinelinux.org/alpine/edge/community docker \
     && npm update -g
 
 # Copy OpenSSL from build stage
