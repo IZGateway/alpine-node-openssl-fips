@@ -26,7 +26,8 @@ def row(fields): fields | map(csv_escape) | join(",");
     $f.severity,
     $cvss.baseScore,
     $cvss.scoringVector,
-    $f.remediation.recommendation.text,
+    .version,
+    .fixedInVersion,
     .filePath,
     .name,
     $f.description
