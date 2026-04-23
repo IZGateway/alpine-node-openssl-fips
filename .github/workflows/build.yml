@@ -193,9 +193,9 @@ jobs:
         git fetch origin cve-reports || { echo "ERROR: cve-reports branch not found" >&2; exit 1; }
         git worktree add cve-reports-dir origin/cve-reports
 
-        # Duplicate-date guard
+        # Duplicate-date guard (skip in test mode — repeated runs expected)
         DATED_JSON="cve-reports-dir/reports/beats-cve-${REPORT_DATE}.json"
-        if [ -f "$DATED_JSON" ]; then
+        if [ -f "$DATED_JSON" ] && [ -z "${{ vars.BEATS_CVE_TEST_EMAIL }}" ]; then
           echo "ERROR: Report for $REPORT_DATE already exists on cve-reports branch." >&2
           exit 1
         fi
