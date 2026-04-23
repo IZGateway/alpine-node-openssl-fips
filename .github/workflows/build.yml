@@ -17,7 +17,10 @@ on:
   
 jobs:
   build:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
+    outputs:
+      beats_version: ${{ steps.beats-version.outputs.version }}
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
 
     steps:
     - name: Checkout the software  
@@ -52,7 +55,8 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
               
-    # Cache OpenSSL Build to speed up subsequent builds as fips.so should not change often
+    # Cache OpenSSL Build to speed up subsequent builds as fips.so should not change often.
+    # --load makes the image available locally so we can extract the beats version below.
     - name: Build and push Docker Image with cache
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -65,8 +69,186 @@ jobs:
             --provenance=false \
             --sbom=false \
             --progress=plain \
+            --load \
             --cache-from=type=local,src=.buildx-cache --cache-to=type=local,dest=.buildx-cache \
             -t ghcr.io/izgateway/alpine-node-openssl-fips:latest \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:${{github.run_number}} \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
             --push .
+
+    - name: Capture beats version
+      id: beats-version
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: alpine-node-openssl-fips
+      run: |
+        VERSION=$(docker run --rm --entrypoint /usr/bin/filebeat \
+          $ECR_REGISTRY/$ECR_REPOSITORY:latest version 2>&1 \
+          | grep -oP '\d+\.\d+\.\d+' | head -1)
+        echo "Beats version: $VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  beats-cve-report:
+    runs-on: ubuntu-latest
+    needs: build
+    # Skip on pull_request — no ECR push occurs, nothing to scan
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+
+    env:
+      ECR_REPOSITORY: alpine-node-openssl-fips
+      BEATS_VERSION: ${{ needs.build.outputs.beats_version }}
+      ELASTIC_DEPLOYMENT_ID: 96949b9e33264bbba8e8934a7c7984de
+
+    steps:
+    - name: Checkout the software
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Wait for ECR enhanced scan to become ACTIVE
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        echo "Waiting for ECR enhanced scan on $ECR_REPOSITORY:latest..."
+        TIMEOUT=300
+        ELAPSED=0
+        while true; do
+          STATUS=$(aws ecr describe-image-scan-findings \
+            --repository-name $ECR_REPOSITORY \
+            --image-id imageTag=latest \
+            --query "imageScanStatus.status" \
+            --output text 2>/dev/null || echo "PENDING")
+          echo "  Scan status: $STATUS (${ELAPSED}s elapsed)"
+          [ "$STATUS" = "ACTIVE" ] && break
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "ERROR: ECR scan did not become ACTIVE within ${TIMEOUT}s" >&2
+            exit 1
+          fi
+          sleep 15
+          ELAPSED=$((ELAPSED + 15))
+        done
+        echo "Scan is ACTIVE."
+
+    - name: Retrieve ECR enhanced findings
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        aws ecr describe-image-scan-findings \
+          --repository-name $ECR_REPOSITORY \
+          --image-id imageTag=latest \
+          --output json > beats-cve-raw.json
+        echo "Total findings: $(jq '.imageScanFindings.enhancedFindings | length' beats-cve-raw.json)"
+
+    - name: Filter findings to beats and generate CSV
+      run: |
+        # Filtered JSON (beats findings only, preserving ECR structure)
+        jq '{imageScanFindings: {enhancedFindings: [
+          .imageScanFindings.enhancedFindings[] |
+          select(.packageVulnerabilityDetails.vulnerablePackages //[] |
+            any(.filePath != null and (.filePath | test("filebeat|metricbeat";"i"))))
+        ]}}' beats-cve-raw.json > beats-cve-filtered.json
+
+        # CSV (header + rows via jq script)
+        echo '"CVE ID","Severity","CVSS Score","CVSS Vector","Remediation","File Path","Package Name","Description"' > beats-cve-filtered.csv
+        jq -rf .github/scripts/inspector-report-beats.jq beats-cve-raw.json >> beats-cve-filtered.csv
+
+        echo "Beats CVE count: $(jq '.imageScanFindings.enhancedFindings | length' beats-cve-filtered.json)"
+        echo "CSV rows: $(wc -l < beats-cve-filtered.csv)"
+
+    - name: Upload beats CVE report artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: beats-cve-report
+        path: |
+          beats-cve-filtered.json
+          beats-cve-filtered.csv
+
+    - name: Prepare and send weekly email report
+      if: ${{ vars.BEATS_CVE_TEST_EMAIL != '' || github.event_name == 'schedule' }}
+      run: |
+        REPORT_DATE=$(date +%Y-%m-%d)
+        echo "REPORT_DATE=$REPORT_DATE" >> $GITHUB_ENV
+
+        # Determine email recipient
+        if [ -n "${{ vars.BEATS_CVE_TEST_EMAIL }}" ]; then
+          EMAIL_TO="${{ vars.BEATS_CVE_TEST_EMAIL }}"
+        else
+          EMAIL_TO="security@elastic.co,support@elastic.co"
+        fi
+        echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
+
+        # Checkout cve-reports branch into subdirectory
+        git fetch origin cve-reports || { echo "ERROR: cve-reports branch not found" >&2; exit 1; }
+        git worktree add cve-reports-dir origin/cve-reports
+
+        # Duplicate-date guard
+        DATED_JSON="cve-reports-dir/reports/beats-cve-${REPORT_DATE}.json"
+        if [ -f "$DATED_JSON" ]; then
+          echo "ERROR: Report for $REPORT_DATE already exists on cve-reports branch." >&2
+          exit 1
+        fi
+
+        # Find baseline for diff (last available dated report)
+        PREV_JSON=$(ls cve-reports-dir/reports/beats-cve-2*.json 2>/dev/null | sort | tail -1 || true)
+        if [ -z "$PREV_JSON" ]; then
+          PREV_JSON="cve-reports-dir/reports/beats-cve-latest.json"
+        fi
+
+        # Compute diff
+        chmod +x .github/scripts/beats-cve-diff.sh
+        if [ -f "$PREV_JSON" ]; then
+          .github/scripts/beats-cve-diff.sh beats-cve-filtered.json "$PREV_JSON" > new-cves.txt
+        else
+          .github/scripts/beats-cve-diff.sh beats-cve-filtered.json > new-cves.txt
+        fi
+        NEW_COUNT=$(grep -c . new-cves.txt || echo 0)
+        echo "New CVEs this week: $NEW_COUNT"
+
+        # Generate HTML email body
+        chmod +x .github/scripts/beats-cve-email.sh
+        .github/scripts/beats-cve-email.sh \
+          beats-cve-filtered.json \
+          new-cves.txt \
+          "$BEATS_VERSION" \
+          "$ELASTIC_DEPLOYMENT_ID" \
+          email-body.html
+
+        # Commit reports to cve-reports branch
+        cp beats-cve-filtered.json "$DATED_JSON"
+        cp beats-cve-filtered.csv  "cve-reports-dir/reports/beats-cve-${REPORT_DATE}.csv"
+        cp beats-cve-filtered.json "cve-reports-dir/reports/beats-cve-latest.json"
+        cp beats-cve-filtered.csv  "cve-reports-dir/reports/beats-cve-latest.csv"
+
+        cd cve-reports-dir
+        git config user.name  "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add reports/
+        git commit -m "chore: add beats CVE report ${REPORT_DATE} [skip ci]"
+        git push origin HEAD:cve-reports
+        cd ..
+
+    - name: Send email to Elastic
+      if: ${{ vars.BEATS_CVE_TEST_EMAIL != '' || github.event_name == 'schedule' }}
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: email-smtp.us-east-1.amazonaws.com
+        server_port: 465
+        secure: true
+        username: ${{ secrets.MAIL_USERNAME }}
+        password: ${{ secrets.MAIL_PASSWORD }}
+        subject: "[IZ Gateway] Weekly Beats CVE Report — ${{ env.REPORT_DATE }}"
+        to: ${{ env.EMAIL_TO }}
+        from: "IZ Gateway CI <noreply@izgateway.org>"
+        html_body: file://email-body.html
+        attachments: beats-cve-filtered.json,beats-cve-filtered.csv
