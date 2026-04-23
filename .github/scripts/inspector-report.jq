@@ -3,6 +3,11 @@
 #   cutoff  YYYY-MM-DD  exclude findings with vendorCreatedAt after this date (default: no filter)
 #   paths   regex       include only packages where filePath matches regex (default: all packages)
 #
+# Columns: Vulnerability ID, Severity, CVSS Score, CVSS Vector, CVE Date,
+#          Installed Version, Fixed In, File Path, Package Name, Description
+#
+# Rows are sorted by CVSS Score descending.
+#
 # Usage:
 #   jq -rf inspector-report.jq input.json
 #   jq -rf inspector-report.jq --arg cutoff "2026-03-30" input.json
@@ -15,9 +20,8 @@ def csv_escape:
   else tostring | gsub("\""; "\"\"") | "\"" + . + "\""
   end;
 
-def row(fields): fields | map(csv_escape) | join(",");
-
-.imageScanFindings.enhancedFindings[] |
+[
+  .imageScanFindings.enhancedFindings[] |
   select(
     ($cutoff // "") == "" or
     .packageVulnerabilityDetails.vendorCreatedAt == null or
@@ -38,14 +42,22 @@ def row(fields): fields | map(csv_escape) | join(",");
   ) |
   select(length > 0) |
   .[] |
-  row([
-    $f.packageVulnerabilityDetails.vulnerabilityId,
-    $f.severity,
-    $cvss.baseScore,
-    $cvss.scoringVector,
-    .version,
-    .fixedInVersion,
-    .filePath,
-    .name,
-    $f.description
-  ])
+  {
+    score: ($cvss.baseScore // -1),
+    fields: [
+      $f.packageVulnerabilityDetails.vulnerabilityId,
+      $f.severity,
+      $cvss.baseScore,
+      $cvss.scoringVector,
+      ($f.packageVulnerabilityDetails.vendorCreatedAt | if . then split("T")[0] else null end),
+      .version,
+      .fixedInVersion,
+      .filePath,
+      .name,
+      $f.description
+    ]
+  }
+] |
+sort_by(-.score) |
+.[].fields |
+map(csv_escape) | join(",")

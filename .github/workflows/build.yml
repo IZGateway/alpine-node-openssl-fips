@@ -161,7 +161,7 @@ jobs:
         ]}}' beats-cve-raw.json > beats-cve-filtered.json
 
         # CSV (header + rows via jq script, filtered to beats file paths)
-        echo '"Vulnerability ID","Severity","CVSS Score","CVSS Vector","Installed Version","Fixed In","File Path","Package Name","Description"' > beats-cve-filtered.csv
+        echo '"Vulnerability ID","Severity","CVSS Score","CVSS Vector","CVE Date","Installed Version","Fixed In","File Path","Package Name","Description"' > beats-cve-filtered.csv
         jq -rf .github/scripts/inspector-report.jq --arg cutoff "" --arg paths "filebeat|metricbeat" beats-cve-raw.json >> beats-cve-filtered.csv
 
         echo "Beats CVE count: $(jq '.imageScanFindings.enhancedFindings | length' beats-cve-filtered.json)"
