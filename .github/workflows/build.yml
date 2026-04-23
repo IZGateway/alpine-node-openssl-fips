@@ -129,6 +129,7 @@ jobs:
             --image-id imageTag=latest \
             --query "imageScanStatus.status" \
             --output text 2>/dev/null || echo "PENDING")
+          STATUS=$(echo "$STATUS" | head -1)
           echo "  Scan status: $STATUS (${ELAPSED}s elapsed)"
           [ "$STATUS" = "ACTIVE" ] && break
           if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
