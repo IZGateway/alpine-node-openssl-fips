@@ -262,6 +262,7 @@ jobs:
         password: ${{ secrets.MAIL_PASSWORD }}
         subject: "[IZ Gateway] Weekly Beats CVE Report — ${{ env.REPORT_DATE }}"
         to: ${{ env.EMAIL_TO }}
+        cc: kboone@ainq.com
         from: "IZ Gateway CI <noreply@izgateway.org>"
         html_body: file://email-body.html
         attachments: beats-cve-filtered.json,beats-cve-filtered.csv
