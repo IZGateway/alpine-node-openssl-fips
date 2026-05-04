@@ -14,6 +14,11 @@ on:
   
   # Enable manual trigger      
   workflow_dispatch:
+    inputs:
+      full_report:
+        description: 'Send full CVE list in email (ignore baseline diff)'
+        type: boolean
+        default: false
   
 jobs:
   build:
@@ -193,12 +198,15 @@ jobs:
         git fetch origin cve-reports || { echo "ERROR: cve-reports branch not found" >&2; exit 1; }
         git worktree add cve-reports-dir origin/cve-reports
 
-        # Duplicate-date guard (skip in test mode — repeated runs expected)
-        DATED_JSON="cve-reports-dir/reports/beats-cve-${REPORT_DATE}.json"
-        if [ -f "$DATED_JSON" ] && [ -z "${{ vars.BEATS_CVE_TEST_EMAIL }}" ]; then
-          echo "ERROR: Report for $REPORT_DATE already exists on cve-reports branch." >&2
-          exit 1
+        # workflow_dispatch runs get a run-number suffix so multiple same-day
+        # runs are preserved; scheduled runs use date-only.
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          DATED_SUFFIX="${REPORT_DATE}-run-${{ github.run_number }}"
+        else
+          DATED_SUFFIX="${REPORT_DATE}"
         fi
+        DATED_JSON="cve-reports-dir/reports/beats-cve-${DATED_SUFFIX}.json"
+        DATED_CSV="cve-reports-dir/reports/beats-cve-${DATED_SUFFIX}.csv"
 
         # Find baseline for diff (last available dated report)
         PREV_JSON=$(ls cve-reports-dir/reports/beats-cve-2*.json 2>/dev/null | sort | tail -1 || true)
@@ -206,9 +214,13 @@ jobs:
           PREV_JSON="cve-reports-dir/reports/beats-cve-latest.json"
         fi
 
-        # Compute diff
+        # Compute diff (skip baseline when full_report is requested)
         chmod +x .github/scripts/beats-cve-diff.sh
-        if [ -f "$PREV_JSON" ]; then
+        FULL_REPORT="${{ github.event.inputs.full_report }}"
+        if [ "$FULL_REPORT" = "true" ]; then
+          echo "Full report requested — bypassing baseline diff."
+          .github/scripts/beats-cve-diff.sh beats-cve-filtered.json > new-cves.txt
+        elif [ -f "$PREV_JSON" ]; then
           .github/scripts/beats-cve-diff.sh beats-cve-filtered.json "$PREV_JSON" > new-cves.txt
         else
           .github/scripts/beats-cve-diff.sh beats-cve-filtered.json > new-cves.txt
@@ -227,7 +239,7 @@ jobs:
 
         # Commit reports to cve-reports branch
         cp beats-cve-filtered.json "$DATED_JSON"
-        cp beats-cve-filtered.csv  "cve-reports-dir/reports/beats-cve-${REPORT_DATE}.csv"
+        cp beats-cve-filtered.csv  "$DATED_CSV"
         cp beats-cve-filtered.json "cve-reports-dir/reports/beats-cve-latest.json"
         cp beats-cve-filtered.csv  "cve-reports-dir/reports/beats-cve-latest.csv"
 
