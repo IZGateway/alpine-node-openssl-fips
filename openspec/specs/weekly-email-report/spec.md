@@ -1,0 +1,75 @@
+# Spec: Weekly Email Report
+
+## Purpose
+Governs the composition and delivery of the weekly beats CVE email report to Elastic, including diff logic, full-report override, and recipient configuration.
+
+## Requirements
+
+### Requirement: Trigger Gating
+The email and cve-reports branch commit steps SHALL only execute when triggered
+by schedule, or when the repository variable BEATS_CVE_TEST_EMAIL is set (test
+mode). workflow_dispatch and push triggers SHALL skip these steps unless
+BEATS_CVE_TEST_EMAIL is set.
+
+#### Scenario: Schedule trigger
+- **WHEN** the workflow is triggered by schedule
+- **THEN** the email step executes and sends to production recipients
+
+#### Scenario: workflow_dispatch without test email
+- **WHEN** the workflow is triggered by workflow_dispatch and BEATS_CVE_TEST_EMAIL is not set
+- **THEN** the email and branch-commit steps are skipped without error
+
+#### Scenario: Test mode
+- **WHEN** BEATS_CVE_TEST_EMAIL is set on any trigger
+- **THEN** the email step executes and sends to the address in BEATS_CVE_TEST_EMAIL
+
+### Requirement: CVE Diff
+The workflow SHALL diff the current report against the most recent dated
+baseline on the cve-reports branch. A full_report dispatch input SHALL bypass
+the diff and include all CVEs in the email.
+
+#### Scenario: Baseline exists
+- **WHEN** a previous dated report exists on the cve-reports branch
+- **THEN** only CVE IDs present in the current report but absent from the baseline appear in the email table
+
+#### Scenario: No baseline
+- **WHEN** no previous report exists on the cve-reports branch
+- **THEN** all CVE IDs in the current report are treated as new
+
+#### Scenario: full_report flag
+- **WHEN** the workflow is triggered by workflow_dispatch with full_report=true
+- **THEN** the baseline is ignored and all current CVEs appear in the email table
+
+#### Scenario: No new CVEs
+- **WHEN** the diff produces zero new CVEs
+- **THEN** the email body states that no new CVEs were found (no empty table is shown)
+
+### Requirement: Email Content
+The email SHALL be an HTML message sent to security@elastic.co and
+support@elastic.co with CC to kboone@ainq.com, containing the beats version,
+deployment ID, and an HTML table of new CVEs sorted by CVSS score descending,
+with full JSON and CSV attachments.
+
+#### Scenario: Recipients
+- **WHEN** the production email is sent
+- **THEN** it is addressed To security@elastic.co and support@elastic.co with CC kboone@ainq.com
+
+#### Scenario: Subject
+- **WHEN** the email is sent
+- **THEN** the subject includes "Beats CVE Report" and the current date
+
+#### Scenario: HTML table
+- **WHEN** the email is sent and new CVEs exist
+- **THEN** the HTML body contains: beats version, deployment ID 96949b9e33264bbba8e8934a7c7984de, and a table of new CVEs sorted by CVSS Score descending with columns CVE ID, Severity, CVSS Score, CVE Date, Installed Version, Fixed In, File Path, Package Name, Description
+
+#### Scenario: Attachments
+- **WHEN** the email is sent
+- **THEN** the full filtered JSON and CSV files are present as attachments
+
+### Requirement: Beats Version Detection
+The beats version SHALL be captured by running the built image locally in the
+build job and passed as a job output to the CVE report job.
+
+#### Scenario: Version capture
+- **WHEN** the image is built with --load
+- **THEN** docker run /usr/bin/filebeat version succeeds and the version string is set as a job output consumed by the beats-cve-report job
