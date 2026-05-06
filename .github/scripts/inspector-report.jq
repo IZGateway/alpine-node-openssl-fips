@@ -1,0 +1,64 @@
+# AWS Inspector Enhanced Findings → CSV
+# Optional filters via --arg:
+#   cutoff  YYYY-MM-DD  exclude findings with vendorCreatedAt after this date (default: no filter)
+#   paths   regex       include only packages where filePath matches regex (default: all packages)
+#
+# Columns: Vulnerability ID, Severity, CVSS Score, CVSS Vector, CVE Date, First Observed,
+#          Installed Version, Fixed In, File Path, Package Name, Description
+#
+# Rows are sorted by CVSS Score descending.
+#
+# Usage:
+#   jq -rf inspector-report.jq input.json
+#   jq -rf inspector-report.jq --arg cutoff "2026-03-30" input.json
+#   jq -rf inspector-report.jq --arg paths "filebeat|metricbeat" input.json
+#   jq -rf inspector-report.jq --arg cutoff "2026-03-30" --arg paths "filebeat|metricbeat" input.json
+
+def csv_escape:
+  if . == null then ""
+  elif type == "number" then tostring
+  else tostring | gsub("\""; "\"\"") | "\"" + . + "\""
+  end;
+
+[
+  .imageScanFindings.enhancedFindings[] |
+  select(
+    ($cutoff // "") == "" or
+    .packageVulnerabilityDetails.vendorCreatedAt == null or
+    (.packageVulnerabilityDetails.vendorCreatedAt | split("T")[0]) <= $cutoff
+  ) |
+  . as $f |
+  ($f.packageVulnerabilityDetails.cvss |
+    map(select(.source == "NVD")) | first //
+    $f.packageVulnerabilityDetails.cvss[0] //
+    {baseScore: null, scoringVector: null}
+  ) as $cvss |
+  ($f.packageVulnerabilityDetails.vulnerablePackages // [{}] |
+    if ($paths // "") != "" then
+      map(select(.filePath != null and (.filePath | test($paths; "i"))))
+    else
+      .
+    end
+  ) |
+  select(length > 0) |
+  .[] |
+  {
+    score: ($cvss.baseScore // -1),
+    fields: [
+      $f.packageVulnerabilityDetails.vulnerabilityId,
+      $f.severity,
+      $cvss.baseScore,
+      $cvss.scoringVector,
+      ($f.packageVulnerabilityDetails.vendorCreatedAt | if . then split("T")[0] else null end),
+      ($f.firstObservedAt | if . then split("T")[0] else null end),
+      .version,
+      .fixedInVersion,
+      .filePath,
+      .name,
+      $f.description
+    ]
+  }
+] |
+sort_by(-.score) |
+.[].fields |
+map(csv_escape) | join(",")
