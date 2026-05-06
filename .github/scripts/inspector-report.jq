@@ -3,7 +3,7 @@
 #   cutoff  YYYY-MM-DD  exclude findings with vendorCreatedAt after this date (default: no filter)
 #   paths   regex       include only packages where filePath matches regex (default: all packages)
 #
-# Columns: Vulnerability ID, Severity, CVSS Score, CVSS Vector, CVE Date,
+# Columns: Vulnerability ID, Severity, CVSS Score, CVSS Vector, CVE Date, First Observed,
 #          Installed Version, Fixed In, File Path, Package Name, Description
 #
 # Rows are sorted by CVSS Score descending.
@@ -50,6 +50,7 @@ def csv_escape:
       $cvss.baseScore,
       $cvss.scoringVector,
       ($f.packageVulnerabilityDetails.vendorCreatedAt | if . then split("T")[0] else null end),
+      ($f.firstObservedAt | if . then split("T")[0] else null end),
       .version,
       .fixedInVersion,
       .filePath,

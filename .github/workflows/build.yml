@@ -190,7 +190,7 @@ jobs:
         if [ -n "${{ vars.BEATS_CVE_TEST_EMAIL }}" ]; then
           EMAIL_TO="${{ vars.BEATS_CVE_TEST_EMAIL }}"
         else
-          EMAIL_TO="security@elastic.co,support@elastic.co"
+          EMAIL_TO="security@elastic.co"
         fi
         echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
 
