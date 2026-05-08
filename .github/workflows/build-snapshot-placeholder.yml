@@ -1,7 +1,9 @@
-name: Docker Build (Snapshot Beats Placeholder)
+name: Snapshot Workflow Placeholder
 
 on:
   workflow_dispatch:
+
+permissions: {}
 
 jobs:
   placeholder:
