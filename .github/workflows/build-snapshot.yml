@@ -1,0 +1,317 @@
+name: Docker Build (Snapshot Beats)
+
+# Runs BEFORE the regular 10:00 UTC release build so that Elastic receives the
+# SNAPSHOT CVE report before the released-build report arrives the same day.
+on:
+  schedule:
+    - cron: '0 8 * * *' # Daily at 08:00 UTC
+
+  # Enable manual trigger
+  workflow_dispatch:
+    inputs:
+      full_report:
+        description: 'Send full CVE list in email (ignore baseline diff)'
+        type: boolean
+        default: false
+      snapshot_version:
+        description: 'Override SNAPSHOT version (e.g. 9.5.0-SNAPSHOT). Leave blank to auto-detect.'
+        type: string
+        default: ''
+
+jobs:
+  build-snapshot:
+    runs-on: ubuntu-latest
+    outputs:
+      snap_version: ${{ steps.snap-version.outputs.version }}
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
+
+    steps:
+    - name: Checkout the software
+      uses: actions/checkout@v4
+
+    - name: Restore Docker build cache
+      uses: actions/cache@v4
+      with:
+        path: .buildx-cache-snapshot
+        key: ${{ runner.os }}-buildx-snapshot-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-snapshot-
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Repository
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Determine SNAPSHOT version
+      id: snap-version
+      run: |
+        if [ -n "${{ github.event.inputs.snapshot_version }}" ]; then
+          SNAP_VERSION="${{ github.event.inputs.snapshot_version }}"
+          echo "Using manually specified SNAPSHOT version: $SNAP_VERSION"
+        else
+          # Determine the current released version
+          CURRENT=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest \
+            | jq -r '.tag_name // empty' | sed 's/^v//')
+          echo "Current release: $CURRENT"
+
+          # Query Elastic artifact API for all available SNAPSHOT versions
+          VERSIONS_JSON=$(curl -sf "https://artifacts-api.elastic.co/v1/versions" 2>&1) || {
+            echo "ERROR: curl failed when contacting Elastic artifact API: $VERSIONS_JSON" >&2
+            exit 1
+          }
+          if ! echo "$VERSIONS_JSON" | jq -e '.versions' >/dev/null 2>&1; then
+            echo "ERROR: Elastic artifact API returned unexpected JSON: ${VERSIONS_JSON:0:200}" >&2
+            exit 1
+          fi
+          SNAPSHOTS=$(echo "$VERSIONS_JSON" \
+            | jq -r '.versions[] | select(test("-SNAPSHOT$"))' \
+            | sed 's/-SNAPSHOT$//' | sort -V)
+
+          # Find the smallest SNAPSHOT base version that is greater than the current release.
+          # awk reads sorted lines; as soon as it encounters a version strictly greater than
+          # CURRENT (using sort -V ordering) it prints it and exits — no fragile grep pipeline.
+          NEXT_BASE=$(printf '%s\n%s' "$CURRENT" "$SNAPSHOTS" \
+            | sort -V \
+            | awk -v cur="$CURRENT" 'found{print; exit} $0==cur{found=1}')
+
+          if [ -z "$NEXT_BASE" ]; then
+            # Fall back to the latest available SNAPSHOT
+            NEXT_BASE=$(echo "$SNAPSHOTS" | tail -1)
+          fi
+
+          if [ -z "$NEXT_BASE" ]; then
+            echo "ERROR: Could not determine next SNAPSHOT version" >&2
+            exit 1
+          fi
+
+          SNAP_VERSION="${NEXT_BASE}-SNAPSHOT"
+          echo "Determined SNAPSHOT version: $SNAP_VERSION (current release: $CURRENT)"
+        fi
+        echo "version=$SNAP_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Build and push Docker image with SNAPSHOT beats
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: alpine-node-openssl-fips-snapshot
+        SNAP_VERSION: ${{ steps.snap-version.outputs.version }}
+      run: |
+        # Use a dedicated builder so this build stays isolated from the release builder
+        docker buildx create --name snapshot_builder --driver docker-container --use \
+          || docker buildx use snapshot_builder
+        # Tag as "future-beats" only — never "latest" — so the image cannot be
+        # accidentally pulled into production or development builds.
+        docker buildx build \
+            --platform=linux/amd64 \
+            --provenance=false \
+            --sbom=false \
+            --progress=plain \
+            --load \
+            --build-arg BEATS_VERSION_OVERRIDE="${SNAP_VERSION}" \
+            --cache-from=type=local,src=.buildx-cache-snapshot \
+            --cache-to=type=local,dest=.buildx-cache-snapshot \
+            -t ghcr.io/izgateway/alpine-node-openssl-fips-snapshot:future-beats \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:future-beats \
+            --push .
+
+  beats-snapshot-cve-report:
+    runs-on: ubuntu-latest
+    needs: build-snapshot
+    permissions:
+      contents: write
+
+    env:
+      ECR_REPOSITORY: alpine-node-openssl-fips-snapshot
+      SNAP_VERSION: ${{ needs.build-snapshot.outputs.snap_version }}
+      ELASTIC_DEPLOYMENT_ID: 96949b9e33264bbba8e8934a7c7984de
+
+    steps:
+    - name: Checkout the software
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Wait for ECR enhanced scan to become ACTIVE
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        echo "Waiting for ECR enhanced scan on $ECR_REPOSITORY:future-beats..."
+        TIMEOUT=300
+        ELAPSED=0
+        while true; do
+          STATUS=$(aws ecr describe-image-scan-findings \
+            --repository-name $ECR_REPOSITORY \
+            --image-id imageTag=future-beats \
+            --query "imageScanStatus.status" \
+            --output text 2>/dev/null || echo "PENDING")
+          STATUS=$(echo "$STATUS" | head -1)
+          echo "  Scan status: $STATUS (${ELAPSED}s elapsed)"
+          [ "$STATUS" = "ACTIVE" ] && break
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "ERROR: ECR scan did not become ACTIVE within ${TIMEOUT}s" >&2
+            exit 1
+          fi
+          sleep 15
+          ELAPSED=$((ELAPSED + 15))
+        done
+        echo "Scan is ACTIVE."
+
+    - name: Retrieve ECR enhanced findings
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        aws ecr describe-image-scan-findings \
+          --repository-name $ECR_REPOSITORY \
+          --image-id imageTag=future-beats \
+          --output json > beats-cve-raw.json
+        echo "Total findings: $(jq '.imageScanFindings.enhancedFindings | length' beats-cve-raw.json)"
+
+    - name: Filter findings to beats and generate CSV
+      run: |
+        jq '{imageScanFindings: {enhancedFindings: [
+          .imageScanFindings.enhancedFindings[] |
+          select(.packageVulnerabilityDetails.vulnerablePackages //[] |
+            any(.filePath != null and (.filePath | test("filebeat|metricbeat";"i"))))
+        ]}}' beats-cve-raw.json > beats-cve-filtered.json
+
+        echo '"Vulnerability ID","Severity","CVSS Score","CVSS Vector","CVE Date","First Observed","Installed Version","Fixed In","File Path","Package Name","Description"' > beats-cve-filtered.csv
+        jq -rf .github/scripts/inspector-report.jq --arg cutoff "" --arg paths "filebeat|metricbeat" beats-cve-raw.json >> beats-cve-filtered.csv
+
+        echo "Beats CVE count: $(jq '.imageScanFindings.enhancedFindings | length' beats-cve-filtered.json)"
+        echo "CSV rows: $(wc -l < beats-cve-filtered.csv)"
+
+    - name: Upload beats SNAPSHOT CVE report artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: beats-snapshot-cve-report
+        path: |
+          beats-cve-filtered.json
+          beats-cve-filtered.csv
+
+    - name: Prepare and send weekly email report
+      if: ${{ vars.BEATS_CVE_TEST_EMAIL != '' || github.event_name == 'schedule' }}
+      run: |
+        REPORT_DATE=$(date +%Y-%m-%d)
+        echo "REPORT_DATE=$REPORT_DATE" >> $GITHUB_ENV
+
+        # Determine email recipient
+        if [ -n "${{ vars.BEATS_CVE_TEST_EMAIL }}" ]; then
+          EMAIL_TO="${{ vars.BEATS_CVE_TEST_EMAIL }}"
+        else
+          EMAIL_TO="security@elastic.co"
+        fi
+        echo "EMAIL_TO=$EMAIL_TO" >> $GITHUB_ENV
+
+        # Checkout cve-reports-snapshot branch; create it (orphan) on first run
+        if git fetch origin cve-reports-snapshot 2>/dev/null; then
+          git worktree add cve-reports-dir origin/cve-reports-snapshot
+        else
+          echo "cve-reports-snapshot branch not found — creating it."
+          git worktree add --orphan -b cve-reports-snapshot cve-reports-dir
+          mkdir -p cve-reports-dir/reports
+          cd cve-reports-dir
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          touch reports/.gitkeep
+          git add reports/.gitkeep
+          git commit -m "chore: initialize cve-reports-snapshot branch [skip ci]"
+          git push origin HEAD:cve-reports-snapshot
+          cd ..
+        fi
+
+        # workflow_dispatch runs get a run-number suffix to avoid same-day conflicts
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          DATED_SUFFIX="${REPORT_DATE}-run-${{ github.run_number }}"
+        else
+          DATED_SUFFIX="${REPORT_DATE}"
+        fi
+        DATED_JSON="cve-reports-dir/reports/beats-snapshot-cve-${DATED_SUFFIX}.json"
+        DATED_CSV="cve-reports-dir/reports/beats-snapshot-cve-${DATED_SUFFIX}.csv"
+
+        # Find baseline for diff (last available dated SNAPSHOT report)
+        PREV_JSON=$(ls cve-reports-dir/reports/beats-snapshot-cve-2*.json 2>/dev/null | sort | tail -1 || true)
+        if [ -z "$PREV_JSON" ]; then
+          PREV_JSON="cve-reports-dir/reports/beats-snapshot-cve-latest.json"
+        fi
+
+        # Compute diff (skip baseline when full_report is requested)
+        chmod +x .github/scripts/beats-cve-diff.sh
+        FULL_REPORT="${{ github.event.inputs.full_report }}"
+        if [ "$FULL_REPORT" = "true" ]; then
+          echo "Full report requested — bypassing baseline diff."
+          .github/scripts/beats-cve-diff.sh beats-cve-filtered.json > new-cves.txt
+        elif [ -f "$PREV_JSON" ]; then
+          .github/scripts/beats-cve-diff.sh beats-cve-filtered.json "$PREV_JSON" > new-cves.txt
+        else
+          .github/scripts/beats-cve-diff.sh beats-cve-filtered.json > new-cves.txt
+        fi
+        if [ -f new-cves.txt ]; then
+          NEW_COUNT=$(wc -l < new-cves.txt)
+        else
+          NEW_COUNT=0
+        fi
+        echo "New CVEs this week: $NEW_COUNT"
+
+        # Generate HTML email body (labelled as SNAPSHOT report)
+        chmod +x .github/scripts/beats-cve-email.sh
+        .github/scripts/beats-cve-email.sh \
+          beats-cve-filtered.json \
+          new-cves.txt \
+          "${SNAP_VERSION}" \
+          "$ELASTIC_DEPLOYMENT_ID" \
+          email-body.html \
+          "SNAPSHOT"
+
+        # Commit reports to cve-reports-snapshot branch
+        cp beats-cve-filtered.json "$DATED_JSON"
+        cp beats-cve-filtered.csv  "$DATED_CSV"
+        cp beats-cve-filtered.json "cve-reports-dir/reports/beats-snapshot-cve-latest.json"
+        cp beats-cve-filtered.csv  "cve-reports-dir/reports/beats-snapshot-cve-latest.csv"
+
+        cd cve-reports-dir
+        git config user.name  "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add reports/
+        git commit -m "chore: add beats SNAPSHOT CVE report ${REPORT_DATE} [skip ci]"
+        git push origin HEAD:cve-reports-snapshot
+        cd ..
+
+    - name: Send email to Elastic
+      if: ${{ vars.BEATS_CVE_TEST_EMAIL != '' || github.event_name == 'schedule' }}
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: email-smtp.us-east-1.amazonaws.com
+        server_port: 465
+        secure: true
+        username: ${{ secrets.MAIL_USERNAME }}
+        password: ${{ secrets.MAIL_PASSWORD }}
+        subject: "[IZ Gateway] [SNAPSHOT] Weekly Beats CVE Report (${{ env.SNAP_VERSION }}) — ${{ env.REPORT_DATE }}"
+        to: ${{ env.EMAIL_TO }}
+        cc: kboone@ainq.com
+        from: "IZ Gateway CI <noreply@izgateway.org>"
+        html_body: file://email-body.html
+        attachments: beats-cve-filtered.json,beats-cve-filtered.csv
