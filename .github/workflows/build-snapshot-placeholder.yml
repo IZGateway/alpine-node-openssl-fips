@@ -1,0 +1,11 @@
+name: Docker Build (Snapshot Beats Placeholder)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder step
+        run: echo "Snapshot workflow placeholder in default branch."
