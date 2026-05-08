@@ -1,0 +1,13 @@
+name: Snapshot Workflow Placeholder
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder step
+        run: echo "Snapshot workflow placeholder in default branch."
