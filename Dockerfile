@@ -65,15 +65,27 @@ RUN apk update \
 COPY --from=openssl-build /usr/local /usr/local
 COPY --from=openssl-build /usr/lib/ossl-modules/fips.so /usr/lib/ossl-modules/fips.so
 
-# Download and install filebeat and metricbeat in one layer
-RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//') \
-    && if [ -z "$ELASTIC_VERSION" ]; then \
-         echo "WARNING: Failed to fetch Elastic Beats version from GitHub API"; \
-         echo "Falling back to known stable version 9.3.2"; \
-         export ELASTIC_VERSION=9.3.2; \
+# Download and install filebeat and metricbeat in one layer.
+# Pass --build-arg BEATS_VERSION_OVERRIDE=X.Y.Z-SNAPSHOT to install a specific
+# (including SNAPSHOT) version instead of auto-detecting the latest release.
+ARG BEATS_VERSION_OVERRIDE=""
+RUN if [ -n "$BEATS_VERSION_OVERRIDE" ]; then \
+         export ELASTIC_VERSION="$BEATS_VERSION_OVERRIDE"; \
+    else \
+         export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//'); \
+         if [ -z "$ELASTIC_VERSION" ]; then \
+           echo "WARNING: Failed to fetch Elastic Beats version from GitHub API"; \
+           echo "Falling back to known stable version 9.3.2"; \
+           export ELASTIC_VERSION=9.3.2; \
+         fi; \
+    fi \
+    && if echo "$ELASTIC_VERSION" | grep -q "SNAPSHOT"; then \
+         ARTIFACT_BASE="https://snapshots.elastic.co/downloads/beats"; \
+       else \
+         ARTIFACT_BASE="https://artifacts.elastic.co/downloads/beats"; \
        fi \
     && echo "Installing Elastic Beats version: ${ELASTIC_VERSION}" \
-    && curl https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /filebeat.tar.gz \
+    && curl "${ARTIFACT_BASE}/filebeat/filebeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz" -o /filebeat.tar.gz \
     && tar xzvf /filebeat.tar.gz \
     && rm /filebeat.tar.gz \
     && mv filebeat-${ELASTIC_VERSION}-linux-x86_64 filebeat \
@@ -82,7 +94,7 @@ RUN export ELASTIC_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/
     && mkdir -p /usr/share/filebeat/data \
     && chmod 775 /usr/share/filebeat /usr/share/filebeat/data \
     && cd / \
-    && curl https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz -o /metricbeat.tar.gz \
+    && curl "${ARTIFACT_BASE}/metricbeat/metricbeat-${ELASTIC_VERSION}-linux-x86_64.tar.gz" -o /metricbeat.tar.gz \
     && tar xzvf /metricbeat.tar.gz \
     && rm /metricbeat.tar.gz \
     && mv metricbeat-${ELASTIC_VERSION}-linux-x86_64 metricbeat \
