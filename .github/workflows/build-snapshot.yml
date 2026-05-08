@@ -1,0 +1,15 @@
+name: Docker Build (Snapshot Beats)
+
+# Placeholder for manual workflow testing.
+# The full workflow is defined in the feature branch.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder step
+        run: echo "Snapshot workflow placeholder — full workflow defined in feature branch."
