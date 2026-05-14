@@ -58,7 +58,7 @@ with full JSON and CSV attachments.
 
 #### Scenario: HTML table
 - **WHEN** the email is sent and new CVEs exist
-- **THEN** the HTML body contains: beats version, deployment ID 96949b9e33264bbba8e8934a7c7984de, and a table of new CVEs sorted by CVSS Score descending with columns CVE ID, Severity, CVSS Score, CVE Date, Installed Version, Fixed In, File Path, Package Name, Description
+- **THEN** the HTML body contains: beats version, deployment ID 96949b9e33264bbba8e8934a7c7984de, and a table of new CVEs sorted by CVSS Score descending with columns CVE ID, Severity, CVSS Score, CVE Created Date, Installed Version, Fixed In, File Path, Package Name, Description
 
 #### Scenario: Attachments
 - **WHEN** the email is sent

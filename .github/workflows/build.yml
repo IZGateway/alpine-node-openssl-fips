@@ -2,7 +2,7 @@ name: Docker Build
 
 on:
   schedule:
-    - cron: '0 10 * * *' # Run daily at 10 am UTC
+    - cron: '0 10 * * 1' # Run weekly on Monday at 10am UTC
 
   push:
     branches: 
