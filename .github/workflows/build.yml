@@ -30,13 +30,41 @@ jobs:
     steps:
     - name: Checkout the software  
       uses: actions/checkout@v4
-      
+
+    - name: Resolve component versions
+      id: versions
+      run: |
+        # Alpine: resolve amd64 digest so any base-image package update busts the cache
+        ALPINE_VERSION=3.23
+        ALPINE_DIGEST=$(docker manifest inspect alpine:${ALPINE_VERSION} | jq -r '.manifests[] | select(.platform.architecture == "amd64" and .platform.os == "linux") | .digest')
+        echo "alpine_ref=${ALPINE_VERSION}@${ALPINE_DIGEST}" >> $GITHUB_OUTPUT
+        echo "alpine_key=$(echo $ALPINE_DIGEST | sed 's/sha256://' | cut -c1-12)" >> $GITHUB_OUTPUT
+
+        # OpenSSL: resolve latest 3.5.x release
+        OPENSSL_VERSION=$(curl -s https://api.github.com/repos/openssl/openssl/releases | jq -r '[.[] | select(.tag_name | startswith("openssl-3.5.")) | .tag_name] | first // ""' | sed 's/^openssl-//')
+        if [ -z "$OPENSSL_VERSION" ]; then
+          echo "WARNING: Failed to fetch OpenSSL version, using fallback 3.5.6"
+          OPENSSL_VERSION=3.5.6
+        fi
+        echo "openssl=${OPENSSL_VERSION}" >> $GITHUB_OUTPUT
+
+        # Beats: resolve latest release
+        BEATS_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//')
+        if [ -z "$BEATS_VERSION" ]; then
+          echo "WARNING: Failed to fetch Beats version, using fallback 9.3.2"
+          BEATS_VERSION=9.3.2
+        fi
+        echo "beats=${BEATS_VERSION}" >> $GITHUB_OUTPUT
+
+        echo "Resolved: Alpine=${ALPINE_VERSION}@${ALPINE_DIGEST}, OpenSSL=${OPENSSL_VERSION}, Beats=${BEATS_VERSION}"
+
     - name: Restore Docker build cache
       uses: actions/cache@v4
       with:
         path: .buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        key: ${{ runner.os }}-buildx-${{ steps.versions.outputs.openssl }}-${{ steps.versions.outputs.beats }}-${{ steps.versions.outputs.alpine_key }}-${{ github.sha }}
         restore-keys: |
+          ${{ runner.os }}-buildx-${{ steps.versions.outputs.openssl }}-${{ steps.versions.outputs.beats }}-${{ steps.versions.outputs.alpine_key }}-
           ${{ runner.os }}-buildx-
 
     - name: Set up Docker Buildx
@@ -75,6 +103,9 @@ jobs:
             --sbom=false \
             --progress=plain \
             --load \
+            --build-arg alpineVersion=${{ steps.versions.outputs.alpine_ref }} \
+            --build-arg OPENSSL_VERSION=${{ steps.versions.outputs.openssl }} \
+            --build-arg BEATS_VERSION_OVERRIDE=${{ steps.versions.outputs.beats }} \
             --cache-from=type=local,src=.buildx-cache --cache-to=type=local,dest=.buildx-cache \
             -t ghcr.io/izgateway/alpine-node-openssl-fips:latest \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:${{github.run_number}} \
