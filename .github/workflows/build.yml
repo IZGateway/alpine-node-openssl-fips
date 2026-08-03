@@ -34,6 +34,9 @@ jobs:
 
     - name: Resolve component versions
       id: versions
+      env:
+        FALLBACK_VERSION_OPENSSL: ${{ vars.FALLBACK_VERSION_OPENSSL }}
+        FALLBACK_VERSION_BEATS: ${{ vars.FALLBACK_VERSION_BEATS }}
       run: |
         # Alpine: resolve amd64 digest so any base-image package update busts the cache
         ALPINE_VERSION=3.23
@@ -44,16 +47,24 @@ jobs:
         # OpenSSL: resolve latest 3.5.x release
         OPENSSL_VERSION=$(curl -s https://api.github.com/repos/openssl/openssl/releases | jq -r '[.[] | select(.tag_name | startswith("openssl-3.5.")) | .tag_name] | first // ""' | sed 's/^openssl-//')
         if [ -z "$OPENSSL_VERSION" ]; then
-          echo "WARNING: Failed to fetch OpenSSL version, using fallback 3.5.6"
-          OPENSSL_VERSION=3.5.6
+          if [ -z "$FALLBACK_VERSION_OPENSSL" ]; then
+            echo "ERROR: Failed to fetch OpenSSL version and repository variable FALLBACK_VERSION_OPENSSL is unset or empty" >&2
+            exit 1
+          fi
+          echo "WARNING: Failed to fetch OpenSSL version, using fallback ${FALLBACK_VERSION_OPENSSL}"
+          OPENSSL_VERSION="${FALLBACK_VERSION_OPENSSL}"
         fi
         echo "openssl=${OPENSSL_VERSION}" >> $GITHUB_OUTPUT
 
         # Beats: resolve latest release
         BEATS_VERSION=$(curl -s https://api.github.com/repos/elastic/beats/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//')
         if [ -z "$BEATS_VERSION" ]; then
-          echo "WARNING: Failed to fetch Beats version, using fallback 9.3.2"
-          BEATS_VERSION=9.3.2
+          if [ -z "$FALLBACK_VERSION_BEATS" ]; then
+            echo "ERROR: Failed to fetch Beats version and repository variable FALLBACK_VERSION_BEATS is unset or empty" >&2
+            exit 1
+          fi
+          echo "WARNING: Failed to fetch Beats version, using fallback ${FALLBACK_VERSION_BEATS}"
+          BEATS_VERSION="${FALLBACK_VERSION_BEATS}"
         fi
         echo "beats=${BEATS_VERSION}" >> $GITHUB_OUTPUT
 
