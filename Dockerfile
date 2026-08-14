@@ -28,8 +28,8 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
          export OPENSSL_VERSION=$(curl -s https://api.github.com/repos/openssl/openssl/releases | jq -r '[.[] | select(.tag_name | startswith("openssl-3.5.")) | .tag_name] | first // ""' | sed 's/^openssl-//'); \
          if [ -z "$OPENSSL_VERSION" ]; then \
            echo "ERROR: Failed to fetch OpenSSL version from GitHub API"; \
-           echo "Falling back to known stable version 3.5.6"; \
-           export OPENSSL_VERSION=3.5.6; \
+           echo "Falling back to known stable version 3.5.8"; \
+           export OPENSSL_VERSION=3.5.8; \
          fi; \
        fi \
     && echo "Building OpenSSL version: ${OPENSSL_VERSION}" \
