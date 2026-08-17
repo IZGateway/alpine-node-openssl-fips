@@ -121,5 +121,3 @@ RUN if [ -n "$BEATS_VERSION_OVERRIDE" ]; then \
     && chmod 775 /usr/share/metricbeat /usr/share/metricbeat/data \
     && cp -a /etc/ssl/certs/* /usr/local/ssl/certs \
     && openssl list -providers 
-
-
