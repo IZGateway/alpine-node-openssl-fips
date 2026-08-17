@@ -33,17 +33,8 @@ RUN apk add --no-cache musl-dev linux-headers make perl openssl-dev wget gcc \
          fi; \
        fi \
     && echo "Building OpenSSL version: ${OPENSSL_VERSION}" \
-    && OPENSSL_TARBALL="openssl-${OPENSSL_VERSION}.tar.gz" \
-    && OPENSSL_URLS="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/${OPENSSL_TARBALL} https://github.com/openssl/openssl/archive/refs/tags/openssl-${OPENSSL_VERSION}.tar.gz https://www.openssl.org/source/${OPENSSL_TARBALL} https://www.openssl.org/source/old/3.5/${OPENSSL_TARBALL} https://source.openssl.org/source/${OPENSSL_TARBALL} https://source.openssl.org/source/old/3.5/${OPENSSL_TARBALL}" \
-    && DOWNLOAD_OK=0 \
-    && for URL in ${OPENSSL_URLS}; do \
-         if wget -O "${OPENSSL_TARBALL}" "${URL}"; then \
-           DOWNLOAD_OK=1; \
-           break; \
-         fi; \
-       done \
-    && if [ "${DOWNLOAD_OK}" -ne 1 ]; then \
-         echo "ERROR: Failed to download OpenSSL ${OPENSSL_VERSION} from all known sources"; \
+    && if ! wget "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz"; then \
+         echo "ERROR: Failed to download OpenSSL ${OPENSSL_VERSION}"; \
          exit 1; \
        fi \
     && tar xf openssl-${OPENSSL_VERSION}.tar.gz \
