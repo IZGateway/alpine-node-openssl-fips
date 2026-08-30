@@ -202,11 +202,35 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        aws ecr describe-image-scan-findings \
-          --repository-name $ECR_REPOSITORY \
-          --image-id imageTag=latest \
-          --output json > beats-cve-raw.json
-        echo "Total findings: $(jq '.imageScanFindings.enhancedFindings | length' beats-cve-raw.json)"
+        echo "Retrieving ECR enhanced findings for $ECR_REPOSITORY:latest..."
+        TIMEOUT=300
+        ELAPSED=0
+        while true; do
+          if aws ecr describe-image-scan-findings \
+            --repository-name $ECR_REPOSITORY \
+            --image-id imageTag=latest \
+            --output json > beats-cve-raw.json 2>scan.err; then
+            echo "Total findings: $(jq '.imageScanFindings.enhancedFindings | length' beats-cve-raw.json)"
+            rm -f scan.err
+            break
+          fi
+
+          if ! grep -q "ScanNotFoundException" scan.err; then
+            echo "ERROR: Failed to retrieve ECR scan findings" >&2
+            cat scan.err >&2
+            exit 1
+          fi
+
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "ERROR: ECR scan findings were not ready within ${TIMEOUT}s" >&2
+            cat scan.err >&2
+            exit 1
+          fi
+
+          echo "  Scan findings not ready yet (${ELAPSED}s elapsed)"
+          sleep 15
+          ELAPSED=$((ELAPSED + 15))
+        done
 
     - name: Filter findings to beats and generate CSV
       run: |
