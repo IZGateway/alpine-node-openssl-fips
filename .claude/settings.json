@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(start msedge *)",
+      "Bash(openspec validate *)",
+      "Bash(openspec status *)",
+      "Bash(aws ecs describe-services *)",
+      "Bash(where *)",
+      "Bash(npm list *)",
+      "Bash(aws ecs describe-task-definition *)",
+      "Bash(aws secretsmanager list-secrets *)",
+      "Bash(gh repo list *)",
+      "Bash(mvn dependency:tree *)",
+      "Bash(aws acm describe-certificate *)",
+      "Bash(aws sts get-caller-identity *)"
+    ]
+  }
+}

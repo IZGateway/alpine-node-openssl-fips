@@ -1,3 +1,23 @@
+---
+schema_version: '1.0'
+updated:
+  - date: '2026-07-18T22:16:05.040Z'
+    user: boonek
+    agent:
+      name: claude-code
+      version: '1.0'
+    llm:
+      name: claude-sonnet-5
+      version: '5'
+    prompt_uri: >-
+      prompt://claude-code/f33cc6a5-f711-4f6d-b236-e9fa6390243f/2026-07-18T22:16:05.041Z
+    summary: >-
+      Mark final verification tasks 4.3-4.6 complete per user confirmation --
+      daily-image-build fully done
+created:
+  date: '2026-06-02T16:19:00.000Z'
+  user: Austin Moody
+---
 # Tasks: daily-image-build
 
 Implementation is confined to `.github/workflows/build.yml`. No script, Dockerfile,
@@ -43,11 +63,11 @@ secret, or repository-variable changes are required.
 - [x] 4.2 Trigger a `workflow_dispatch` run with `BEATS_CVE_TEST_EMAIL` **unset**.
   Verify the build + artifact still happen and the email + `cve-reports` commit are
   skipped without error.
-- [ ] 4.3 Confirm the schedule on GitHub: the next scheduled runs appear daily (not
-  only Monday) in the Actions UI / `gh workflow view`.
-- [ ] 4.4 After (or by inspecting) a **non-Monday** scheduled run, confirm it builds +
-  scans + uploads the artifact but does **not** email or commit to `cve-reports`.
-- [ ] 4.5 After (or by inspecting) the **Monday** scheduled run, confirm the Elastic
+- [x] 4.3 Confirm the schedule on GitHub: the next scheduled runs appear daily (not
+  only Monday) in the Actions UI / `gh workflow view`. — confirmed 2026-07-18
+- [x] 4.4 After (or by inspecting) a **non-Monday** scheduled run, confirm it builds +
+  scans + uploads the artifact but does **not** email or commit to `cve-reports`. — confirmed 2026-07-18
+- [x] 4.5 After (or by inspecting) the **Monday** scheduled run, confirm the Elastic
   email goes out with the week-over-week diff against the previous Monday's dated
-  report, and the dated report is committed to `cve-reports` with `[skip ci]`.
-- [ ] 4.6 Clear `BEATS_CVE_TEST_EMAIL` once testing is complete.
+  report, and the dated report is committed to `cve-reports` with `[skip ci]`. — confirmed 2026-07-18
+- [x] 4.6 Clear `BEATS_CVE_TEST_EMAIL` once testing is complete. — confirmed 2026-07-18
